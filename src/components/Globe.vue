@@ -3,7 +3,7 @@
 </template>
 
 <script>
-import { watch, ref, onMounted } from "vue";
+import { watch, watchEffect, ref, toRefs, onMounted } from "vue";
 import { feature } from "topojson-client";
 import { presimplify, simplify } from "topojson-simplify";
 import versor from "versor/src/index.js";
@@ -56,7 +56,7 @@ function getInterpolates(countries) {
   };
 }
 
-async function init(canvas, width, height, autospin) {
+function init(canvas, width, height, autospin) {
   if (!canvas) return;
 
   const sphere = { type: "Sphere" };
@@ -64,7 +64,7 @@ async function init(canvas, width, height, autospin) {
     [20, 20],
     [width - 20, height - 20],
   ];
-  const ratio = window.devicePixelRatio; // practice to fix the font blurry, but not quite pleasant
+  const ratio = window.devicePixelRatio;
   canvas.style.width = width + "px";
   canvas.style.height = height + "px";
   canvas.width = ratio * width;
@@ -158,13 +158,10 @@ async function init(canvas, width, height, autospin) {
   const interpolates = getInterpolates(countries);
 
   // only rotate when 80% of the globe is visible
-  const observeHandler = ([entry]) => {
-    entry?.isIntersecting ? restart() : stop();
-  };
-  new IntersectionObserver(observeHandler, {
-    root: null,
-    threshold: 0.8,
-  }).observe(canvas);
+  new IntersectionObserver(
+    ([entry]) => (entry?.isIntersecting ? restart() : stop()),
+    { root: null, threshold: 0.8 }
+  ).observe(canvas);
 
   // stop when page is not visible like being switched to other tabs or blocked by other window
   window.addEventListener(
@@ -220,26 +217,21 @@ export default {
     height: { type: Number, default: 500 },
   },
 
-  setup(props, { emit }) {
+  setup(props) {
     const globe = ref(null);
-    const updateSelection = (data) => emit("update:region", data);
+    const { width, height, region, autospin } = toRefs(props);
 
-    onMounted(() => {
-      watch(
-        () => [props.width, props.height].join(),
-        async () => {
-          const fn = await init(
-            globe.value,
-            props.width,
-            props.height,
-            props.autospin,
-            updateSelection
-          );
-          watch(() => props.region, fn, { immediate: true });
-        },
-        { immediate: true }
-      );
-    });
+    onMounted(() =>
+      watchEffect(() => {
+        const animate = init(
+          globe.value,
+          width.value,
+          height.value,
+          autospin.value
+        );
+        watch(region, animate, { immediate: true });
+      })
+    );
 
     return { globe };
   },

@@ -7,9 +7,13 @@
 <script>
 import { feature } from "topojson-client";
 import { sample } from "lodash-es";
-import { onMounted, ref } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import Globe from "./components/Globe.vue";
-import world from "world-atlas/countries-50m.json";
+import world, { objects } from "world-atlas/countries-50m.json";
+
+const countryCodes = feature(world, objects.countries)
+  .features.map((d) => d?.id)
+  .filter((d) => !!d);
 
 export default {
   name: "App",
@@ -20,27 +24,23 @@ export default {
     const width = ref(300);
     const height = ref(300);
 
+    function resize() {
+      const bcr = this.getBoundingClientRect();
+      const size = Math.min(bcr.width, bcr.height);
+      width.value = size;
+      height.value = size;
+    }
+
     onMounted(() => {
-      const countryCodes = feature(world, world.objects.countries)
-        .features.map((d) => d?.id)
-        .filter((d) => !!d);
-
-      setInterval(async () => {
-        region.value = sample(countryCodes);
-      }, 5000);
-
-      function resize() {
-        const size = Math.min(
-          globeWrap.value.getBoundingClientRect().width,
-          globeWrap.value.getBoundingClientRect().height
-        );
-        width.value = size;
-        height.value = size;
-      }
-      resize();
-      window.addEventListener("resize", resize);
+      resize.call(globeWrap.value);
+      window.addEventListener("resize", resize.bind(globeWrap.value));
     });
 
+    onUnmounted(() => {
+      window.removeEventListener("resize", resize.bind(globeWrap.value));
+    });
+
+    setInterval(() => (region.value = sample(countryCodes)), 5000);
     return { globeWrap, region, width, height };
   },
 };
