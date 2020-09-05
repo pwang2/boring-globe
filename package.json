@@ -17,14 +17,14 @@
     "world-atlas": "^2.0.2"
   },
   "devDependencies": {
-    "@vue/compiler-sfc": "^3.0.0-rc.1",
+    "@vue/compiler-sfc": "^3.0.0-rc.10",
     "@vue/eslint-config-prettier": "^6.0.0",
     "babel-eslint": "^10.1.0",
     "eslint": "^7.8.1",
     "eslint-plugin-prettier": "^3.1.4",
-    "eslint-plugin-vue": "^6.2.2",
+    "eslint-plugin-vue": "next",
     "eslint_d": "^9.1.1",
     "prettier": "^2.1.1",
-    "vite": "^1.0.0-rc.1"
+    "vite": "^1.0.0-rc.4"
   }
 }
