@@ -1,0 +1,31 @@
+import {
+  select,
+  geoPath,
+  geoInterpolate,
+  geoOrthographic,
+  geoGraticule,
+  geoCentroid,
+  geoContains,
+  easeQuadInOut,
+  json,
+  transition,
+  drag,
+  timer,
+  pointer,
+} from "d3";
+
+export default {
+  select,
+  geoPath,
+  geoInterpolate,
+  geoOrthographic,
+  geoGraticule,
+  geoCentroid,
+  geoContains,
+  easeQuadInOut,
+  json,
+  transition,
+  drag,
+  timer,
+  pointer,
+};
