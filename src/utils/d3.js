@@ -11,6 +11,7 @@ import {
   transition,
   drag,
   timer,
+  now,
   pointer,
 } from "d3";
 
@@ -27,5 +28,6 @@ export default {
   transition,
   drag,
   timer,
+  now,
   pointer,
 };

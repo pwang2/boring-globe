@@ -82,31 +82,59 @@ function init(canvas, width, height, autospin) {
   const land = feature(world, world.objects.land);
   const countries = feature(world, world.objects.countries).features;
 
+  const glowFn = getEarthGlow(width, height);
+
+  function getEarthGlow(width, height) {
+    let canvas;
+
+    return () => {
+      if (canvas) return canvas;
+
+      const glowCanvas = document.createElement("canvas");
+      glowCanvas.width = width;
+      glowCanvas.height = height;
+
+      const ctx = glowCanvas.getContext("2d");
+      const path = d3.geoPath(projection, ctx);
+
+      ctx.beginPath(),
+        path(sphere),
+        (ctx.strokeStyle = "#333"),
+        (ctx.fillStyle = "#a2c0f4"),
+        (ctx.lineWidth = 0.5),
+        (ctx.shadowColor = "#333"),
+        (ctx.shadowBlur = 20),
+        ctx.stroke(),
+        ctx.fill();
+
+      return ctx.canvas;
+    };
+  }
+
   function render(country, arc) {
     ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(glowFn(), 0, 0);
 
-    ctx.beginPath(),
-      path(sphere),
-      (ctx.strokeStyle = "#333"),
-      (ctx.fillStyle = "#a2c0f4"),
-      (ctx.lineWidth = 0.5),
-      (ctx.shadowColor = "#333"),
-      (ctx.shadowBlur = 20),
-      ctx.stroke(),
-      ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.beginPath(), path(land), (ctx.fillStyle = "#f4f4f4"), ctx.fill();
-    ctx.beginPath(), path(country), (ctx.fillStyle = "#f008"), ctx.fill();
-    ctx.beginPath(), path(arc), (ctx.lineWidth = 1), ctx.stroke();
+    ctx.beginPath(), path(land), (ctx.fillStyle = "#fbf8f4"), ctx.fill();
+
+    if (country) {
+      ctx.beginPath(), path(country), (ctx.fillStyle = "#f008"), ctx.fill();
+    }
+    if (arc) {
+      ctx.beginPath(), path(arc), (ctx.lineWidth = 1), ctx.stroke();
+    }
 
     ctx.beginPath(),
       path(graticule),
       ((ctx.strokeStyle = "#666"), (ctx.lineWidth = 0.3)),
       ctx.stroke();
+
     return ctx.canvas;
   }
 
-  function drawLabel(name, [x, y]) {
+  function drawLabel(ctx, name, [x, y]) {
+    if (!name) return;
+
     const curStyle = ctx.fillStyle;
     //draw circle to make small countries visible on the map
     ctx.moveTo(x, y);
@@ -125,9 +153,9 @@ function init(canvas, width, height, autospin) {
   }
 
   function createRotateTimer() {
-    let lastTime = new Date();
+    let lastTime = d3.now();
     return (elapsed) => {
-      const now = new Date();
+      const now = d3.now();
       const diff = now - lastTime;
       if (diff < elapsed) {
         const rotation = projection.rotate();
@@ -139,82 +167,60 @@ function init(canvas, width, height, autospin) {
     };
   }
 
-  function rotateSwitch() {
-    let autorotate;
-    const rotateTimer = createRotateTimer();
-
-    return {
-      restart(delay = 0) {
-        if (!autorotate) autorotate = autospin && d3.timer(rotateTimer);
-        else autorotate.restart(rotateTimer, delay);
-      },
-      stop() {
-        autorotate && autorotate.stop();
-      },
-    };
-  }
-
-  const { restart, stop } = rotateSwitch();
   const interpolates = getInterpolates(countries);
-
-  // only rotate when 80% of the globe is visible
-  new IntersectionObserver(
-    ([entry]) => (entry?.isIntersecting ? restart() : stop()),
-    { root: null, threshold: 0.8 }
-  ).observe(canvas);
-
-  // stop when page is not visible like being switched to other tabs or blocked by other window
-  window.addEventListener(
-    "visibilitychange",
-    document.hidden ? stop : restart,
-    false
-  );
+  const rotateCb = createRotateTimer();
+  const autorotate = d3.timer(rotateCb);
+  if (!autospin) autorotate.stop();
 
   d3.select(canvas)
     .call(drag(projection).on("drag.render", render).on("end.render", render))
-    .on("mouseout", () => restart(1000))
     .on("mousemove", function (event) {
-      stop();
+      autorotate.stop();
       const pos = projection.invert(d3.pointer(event, this));
       const c = countries.find((c) => d3.geoContains(c, pos));
       if (c) {
         render(c);
-        drawLabel(c?.properties?.name, projection(d3.geoCentroid(c)));
+        drawLabel(ctx, c?.properties?.name, projection(d3.geoCentroid(c)));
       }
-    });
+    })
+    .on("mouseout", () => autorotate.restart(rotateCb, 2000));
 
   return function animate(codeTo, codeFrom) {
+    autorotate && autorotate.stop();
     if (!codeTo) return;
     const [countryTo, ip, iv, p1, p2] = interpolates(codeTo);
     const countryToName = countryTo?.properties?.name;
     const countryFrom = countries.find((c) => String(c.id) === codeFrom);
     const countryFromName = countryFrom?.properties?.name;
 
-    d3.transition()
-      .duration(1200)
-      .ease(d3.easeQuadInOut)
+    d3.select(canvas)
+      .transition()
+      .duration(1500)
       .tween("rotate", () => (t) => {
+        // var startTime = performance.now();
         projection.rotate(iv(t));
         render(countryTo, { type: "LineString", coordinates: [p1, ip(t)] });
-        if (countryFromName) {
-          drawLabel(countryFromName, projection(p1));
-        }
-        restart(2000);
+
+        drawLabel(ctx, countryFromName, projection(p1));
+        // var endTime = performance.now();
+        // console.log(endTime - startTime);
       })
       .transition()
+      .duration(500)
       .tween("render", () => (t) => {
         render(countryTo, { type: "LineString", coordinates: [ip(t), p2] });
-        drawLabel(countryToName, [width / 2, height / 2]);
-      });
+        drawLabel(ctx, countryToName, [width / 2, height / 2]);
+      })
+      .on("end", () => autorotate.restart(rotateCb, 3000));
   };
 }
 
 export default {
   props: {
     region: { type: String },
-    autospin: { type: Boolean, default: false },
     width: { type: Number, default: 500 },
     height: { type: Number, default: 500 },
+    autospin: { type: Boolean, default: true },
   },
 
   setup(props) {

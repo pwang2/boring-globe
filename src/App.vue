@@ -1,6 +1,11 @@
 <template>
   <div ref="globeWrap" style="width: 100%; height: 100vh">
-    <Globe :region="region" :width="width" :height="height"></Globe>
+    <Globe
+      :region="region"
+      :width="width"
+      :height="height"
+      :autospin="autospin"
+    ></Globe>
   </div>
 </template>
 
@@ -23,6 +28,7 @@ export default {
     const region = ref("156");
     const width = ref(300);
     const height = ref(300);
+    const autospin = ref(true);
 
     function resize() {
       const bcr = this.getBoundingClientRect();
@@ -40,8 +46,8 @@ export default {
       window.removeEventListener("resize", resize.bind(globeWrap.value));
     });
 
-    setInterval(() => (region.value = sample(countryCodes)), 5000);
-    return { globeWrap, region, width, height };
+    setInterval(() => (region.value = sample(countryCodes)), 50000);
+    return { globeWrap, region, width, height, autospin };
   },
 };
 </script>
